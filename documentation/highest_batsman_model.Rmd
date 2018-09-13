@@ -1,0 +1,123 @@
+---
+title: "Highest Batsman Model"
+author: "Matthew Pead"
+date: "20 April 2017"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include = F}
+library(tidyverse)
+library(knitr)
+library(gbm)
+knitr::opts_chunk$set(echo = F, warning = F, message = F, cache = F, fig.align = "center")
+knitr::opts_knit$set(root.dir = "~/cricket")
+```
+
+
+```{r load_functions, include = F}
+lapply(list.files(path = "code", pattern = "[.]R$", full.names = T, recursive = T), source)
+```
+
+```{r load_data, include = F}
+data <- create_datamart()
+list2env(data, envir = .GlobalEnv)
+```
+
+# Sample
+
+```{r create_sample, include = F}
+
+sample <- player_batting_inning
+  
+
+# Filter
+
+sample <- sample %>%
+  filter(in_no %in% c(1,2)) %>%
+  filter(!is.na(mt_id)) %>%
+  filter(!is.na(pf_highest_bat)) %>%
+  filter(mt_start_date < "2017-12-01" & mt_start_date > "2015-01-01")
+
+# Format
+
+sample <- sample %>%
+  mutate(mt_format = as.factor(mt_format))
+
+# Prepare
+
+sample <- sample %>%
+  left_join(player_batting_attributes(.), by = "id")
+
+
+# Add build / validation split
+
+set.seed(0)
+s <- sample(nrow(sample), nrow(sample) * 0.7)
+sample$pr_pop <- ifelse(1:nrow(sample) %in% s, "build", "validation")
+saveRDS(sample, "data/highest_batsman_sample.rds")
+```
+
+```{r read_sample}
+sample <- readRDS("data/highest_batsman/sample.rds")
+```
+
+
+# Attributes
+
+```{r attributes}
+attrs <- names(sample)[
+  sapply(sample, class) %in% c("numeric", "integer") &
+  substr(names(sample), 0, 2) %in% c("mt", "ph") & 
+  !names(sample) %in% c("id", "mt_id", "in_no")]
+```
+
+
+# Model
+
+```{r build, include = F}
+model <- gbm(
+  formula = pf_highest_bat ~ .,
+  distribution = "bernoulli",
+  data = sample %>% select(!!attrs, "pf_highest_bat"),
+  n.trees = 100,
+  cv.fold = 3,
+  n.cores = 3,
+  verbose = T
+)
+```
+
+```{r summary}
+summary(model)
+gbm.perf(model)
+```
+
+```{r predict_sample}
+sample <- sample %>%
+    mutate(pr_highest_bat = predict(model, sample, n.trees = gbm.perf(model), type = "response")) %>%
+  group_by(mt_id, mt_team) %>%
+  mutate(pr_highest_bat_team = sum(pr_highest_bat)) %>%
+  ungroup() %>%
+  mutate(pr_highest_bat = pr_highest_bat / pr_highest_bat_team)
+```
+
+
+# Validate
+
+```{r validation}
+validation <- model_validation(sample, "pr_pop", "pr_highest_bat", "pf_highest_bat")
+validation
+```
+
+
+# Inspect
+
+```{r inspect}
+sample %>%
+  filter(pr_pop == "validation") %>%
+  arrange(pr_highest_bat) %>%
+  select(starts_with("mt"), starts_with("pl"), starts_with("pr")) %>%
+  top_n(30, -pr_highest_bat) %>%
+  kable()
+```

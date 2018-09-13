@@ -1,0 +1,58 @@
+---
+title: "Prediction"
+author: "Matthew Pead"
+date: "20 April 2017"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r setup, include = F}
+library(tidyverse)
+library(knitr)
+knitr::opts_chunk$set(echo = F, warning = F, message = F, cache = F, fig.align = "center")
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+```
+
+```{r load_functions, include = F}
+lapply(list.files(path = "code", pattern = "[.]R$", full.names = T, recursive = T), source)
+```
+
+
+```{r download, include = F, eval = F}
+download_player_batting_data()
+# download_player_bowling_data()
+download_team_result_data()
+```
+
+
+# Match Details
+
+```{r input, echo = F}
+series_id <- 18018
+game_id <- 1119543
+match_details <- read_match_info(series_id, game_id)
+match_details <- c(match_details, mt_ground_country = "England")
+#match_details[["mt_ground"]] <- "Perth"
+#match_details[["mt_format"]] <- "ODI"
+#match_details[["mt_squad_two"]] <- match_details[["mt_squad_two"]][match_details[["mt_squad_two"]] != "BA Stokes"]
+#match_details[["mt_squad_two"]] <- match_details[["mt_squad_two"]][match_details[["mt_squad_two"]] != "GS Ballance"]
+```
+
+```{r match_details}
+match_details
+```
+
+
+# Highest Batsman Prediction
+
+```{r highest_batsman_prediction}
+highest_batsman_result <- highest_batsman_prediction(match_details)
+```
+
+```{r highest_batsman_result}
+kable(highest_batsman_result[[1]], align = "c", digits = 2)
+kable(highest_batsman_result[[2]], align = "c", digits = 2)
+```
+
