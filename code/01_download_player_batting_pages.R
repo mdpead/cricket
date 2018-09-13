@@ -1,24 +1,24 @@
 library(tidyverse)
 library(rvest)
 
-download_player_batting_data <- function(){
+download_player_batting_pages <- function(){
 
 # Check if batting history exists
-if(file.exists("data/player_batting.rds")){
+if(file.exists("data/player_batting_pages.rds")){
   # Load batting history
-  ds <- readRDS("data/player_batting.rds")
+  ds <- readRDS("data/player_batting_pages.rds")
   first_download <- 0
 } else{
   first_download <- 1
+  ds <- list()
 }
 
 
 first_page <- ifelse(first_download == 1, 1,
-                ifelse(first_download == 0 & max(ds$page) < 4, 1, max(ds$page) - 3))
+                ifelse(first_download == 0 & length(ds) < 4, 1, length(ds) - 3))
 
 # Download each page needed
-add <- NULL
-page <- NULL
+add <- list()
 i <- first_page
 repeat {
   print(paste("Downloading page ", i, sep = ""))
@@ -33,28 +33,21 @@ repeat {
   
   
   if(!nrow(page) > 0) {break}
-  page <- data.frame(lapply(page, as.character), stringsAsFactors = FALSE)
+  
   page$page <- i
   page$row <- 1:nrow(page)
   
-  
-  if(i != first_page) {add <- bind_rows(add, page)} else {add <- page}
+  add[[paste(i)]] <- page
   i <- i + 1
 }
 
-add <- add[, -9]
 
-
-# Bind additional innings to beginning of history  
-if(first_download == 0) {ds <- bind_rows(add, ds)} else {ds <- add}
-
-# Dedup keeping latest version to ensure overwriting of history
-ds <- ds %>%
-  distinct(page, row, .keep_all = T)
+# Replace in original list
+ds[names(add)] <- add[names(add)]
 
 
 # Save history
-saveRDS(ds, "data/player_batting.rds")
+saveRDS(ds, "data/player_batting_pages.rds")
 
 }
 
