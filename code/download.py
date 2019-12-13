@@ -3,7 +3,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 
 dfs = []
-for i in range(1, 4):
+for i in range(1, 5):
     url = f'http://stats.espncricinfo.com/ci/engine/stats/index.html?class=11;orderby=start;page={i};template=results' \
           f';type=batting;view=innings;wrappertype=print'
     page = requests.get(url)
