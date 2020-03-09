@@ -15,14 +15,14 @@ def download(first_page, last_page):
         df = pd.read_html(str(html_table), header=0)[0]
         df = df.assign(Page = i)
         dfs.append(df)
-    ds = pd.concat(dfs, axis = 0)
+    output = pd.concat(dfs, axis = 0)
     
-    return(ds)
+    return(output)
 
 
 def clean(df):
     
-    clean = df \
+    df = df \
       .drop(columns = df.columns[8]) \
       .assign(mt_start_date = df['Start Date'].astype('datetime64[ns]')) \
       .assign(mt_ground = df['Ground']) \
@@ -41,5 +41,12 @@ def clean(df):
       .drop(['Player', 'Runs', 'Mins', 'BF', '4s', '6s', 'SR', 'Inns', 'Opposition', 'Ground', 'Start Date', 'Page'],
             axis = 1)
     
-    return(clean)
+    return(df)
 
+
+def feature(df):
+    
+    df['pf_highest_batsman'] = df.groupby(['mt_start_date', 'mt_team_code', 'in_no'])['pf_runs'].transform('max') == df['pf_runs']
+    df['pl_batting_order'] = df.groupby(['mt_start_date', 'mt_team_code', 'in_no']).cumcount() + 1
+    
+    return(df)
